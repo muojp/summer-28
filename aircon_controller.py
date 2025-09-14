@@ -7,6 +7,10 @@ import time
 # --- 定数 ---
 DB_PATH = "/home/muo/workspace/summer-28/remo.db"
 API_BASE_URL = "https://api.nature.global"
+TEMP_RANGE_LOW = 27.0
+TEMP_RANGE_HIGH = 29.0
+TEMP_CONF_LOW = "28"
+TEMP_CONF_HIGH = "30"
 
 # --- データベース関連 ---
 def setup_database():
@@ -163,7 +167,7 @@ def main():
                     # タブで分割し、最後の要素を温度として取得
                     temp_str = last_line.split('\t')[-1]
                     cached_temp = float(temp_str)
-                    if 27.0 < cached_temp <= 29.0:
+                    if TEMP_RANGE_LOW < cached_temp <= TEMP_RANGE_HIGH:
                         # print(f"キャッシュされた室温 ({cached_temp}°C) は適温範囲内です。APIアクセスは行わず、処理を終了します。")
                         sys.exit(0)
     except (IOError, ValueError, IndexError) as e:
@@ -220,33 +224,33 @@ def main():
         if power_status == 'off':
             print("エアコンの電源がOFFのため、温度変更は行いません。")
             # 温度が範囲外の場合、次回実行を10分遅らせる
-            if current_temp > 29.0 or current_temp <= 27.0:
+            if current_temp > TEMP_RANGE_HIGH or current_temp <= TEMP_RANGE_LOW:
                 print("室温が範囲外のため、10分間のクールダウンを設定します。")
                 set_config("last_set_temp", "off_detected")
                 set_config("last_set_timestamp", str(time.time()))
             sys.exit(0)
 
         # 7. (電源ONの場合の)制御ロジック
-        if current_temp > 29.0:
-            if current_set_temp != '28':
-                print("室温が29°Cを超えたため、設定温度を28°Cに変更します...")
-                post_aircon_settings(token, appliance_id, "28")
-                set_config("last_set_temp", "28")
+        if current_temp > TEMP_RANGE_HIGH:
+            if current_set_temp != TEMP_CONF_LOW:
+                print(f"室温が{TEMP_RANGE_HIGH}°Cを超えたため、設定温度を{TEMP_CONF_LOW}°Cに変更します...")
+                post_aircon_settings(token, appliance_id, TEMP_CONF_LOW)
+                set_config("last_set_temp", TEMP_CONF_LOW)
                 set_config("last_set_timestamp", str(time.time()))
                 print("変更しました。")
             else:
-                print("設定温度は既に28°Cのため、操作は行いません。")
-        elif current_temp <= 27.0:
-            if current_set_temp != '30':
-                print("室温が27°C以下になったため、設定温度を30°Cに変更します...")
-                post_aircon_settings(token, appliance_id, "30")
-                set_config("last_set_temp", "30")
+                print(f"設定温度は既に{TEMP_CONF_LOW}°Cのため、操作は行いません。")
+        elif current_temp <= TEMP_RANGE_LOW:
+            if current_set_temp != TEMP_CONF_HIGH:
+                print(f"室温が{TEMP_RANGE_LOW}°C以下になったため、設定温度を{TEMP_CONF_HIGH}°Cに変更します...")
+                post_aircon_settings(token, appliance_id, TEMP_CONF_HIGH)
+                set_config("last_set_temp", TEMP_CONF_HIGH)
                 set_config("last_set_timestamp", str(time.time()))
                 print("変更しました。")
             else:
-                print("設定温度は既に30°Cのため、操作は行いません。")
+                print(f"設定温度は既に{TEMP_CONF_HIGH}°Cのため、操作は行いません。")
         else:
-            print("室温は適正範囲内（27°C < T <= 29°C）です。")
+            print(f"室温は適正範囲内（{TEMP_RANGE_LOW}°C < T <= {TEMP_RANGE_HIGH}°C）です。")
 
     except requests.exceptions.HTTPError as e:
         print(f"APIエラー: {e.response.status_code} {e.response.reason}")
